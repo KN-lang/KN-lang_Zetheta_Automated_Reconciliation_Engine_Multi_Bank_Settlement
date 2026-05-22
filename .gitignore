@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 
 data/generated/*.csv
+data/generated/*.mt940
 data/output/*.csv
 data/output/*.json
 data/output/*.xlsx

@@ -20,12 +20,15 @@
 
 ## Phase 3: MT940 Parser
 
-- Parse MT940 statements into intermediate records.
-- Normalize statement lines into canonical transactions.
-- Add parser-specific tests with realistic statement samples.
+- Status: Implemented for simulated/common MT940 statement lines.
+- Parses `:25:` account identification, `:60F:`/`:62F:` currency, `:61:` statement lines, and `:86:` narration.
+- Normalizes MT940 statement lines into canonical transactions.
+- Supports MT940 reconciliation through `--external-format mt940`.
+- Includes parser, normalization, and end-to-end component tests.
 
 ## Phase 4: CAMT.053 Parser
 
+- Status: Planned.
 - Parse ISO 20022 CAMT.053 XML files with namespace-aware XML handling.
 - Normalize entries and transaction details into canonical transactions.
 - Validate parser behavior against sample bank files.

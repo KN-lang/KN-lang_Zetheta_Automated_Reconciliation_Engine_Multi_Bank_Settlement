@@ -7,7 +7,11 @@ from pathlib import Path
 import pandas as pd
 
 
-def generate_sample_data(output_dir: str | Path = "data/generated", count: int = 100) -> tuple[Path, Path]:
+def generate_sample_data(
+    output_dir: str | Path = "data/generated",
+    count: int = 100,
+    include_mt940: bool = False,
+) -> tuple[Path, Path] | tuple[Path, Path, Path]:
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
 
@@ -64,6 +68,10 @@ def generate_sample_data(output_dir: str | Path = "data/generated", count: int =
     bank_path = target / "bank_settlement.csv"
     pd.DataFrame(internal_rows).to_csv(internal_path, index=False)
     pd.DataFrame(bank_rows).to_csv(bank_path, index=False)
+    if include_mt940:
+        mt940_path = target / "bank_statement.mt940"
+        mt940_path.write_text(_build_mt940_statement(bank_rows), encoding="utf-8")
+        return internal_path, bank_path, mt940_path
     return internal_path, bank_path
 
 
@@ -89,3 +97,58 @@ def _apply_exception_scenarios(
     duplicate_internal["internal_txn_id"] = "INT_DUP_INT_000080"
     duplicate_internal["narration"] = "Duplicate internal ledger"
     internal_rows.append(duplicate_internal)
+
+
+def _build_mt940_statement(bank_rows: list[dict[str, object]]) -> str:
+    statement_rows = [dict(row) for row in bank_rows[:35]]
+    statement_rows[6]["transaction_amount"] = "7777.77"  # amount mismatch
+    statement_rows[7]["value_date"] = "2026-05-20"  # date mismatch
+    statement_rows[8]["bank_reference"] = "UTR-000008"  # narration/reference variation
+
+    missing_internal = dict(statement_rows[0])
+    missing_internal["bank_txn_id"] = "MT940_MISSING_INTERNAL"
+    missing_internal["bank_reference"] = "UTR_MT940_ONLY"
+    missing_internal["transaction_amount"] = "4321.00"
+    missing_internal["description"] = "MT940 only settlement"
+    statement_rows.append(missing_internal)
+
+    duplicate_reference = dict(statement_rows[12])
+    duplicate_reference["bank_txn_id"] = "MT940_DUPLICATE_000012"
+    duplicate_reference["description"] = "MT940 duplicate settlement"
+    statement_rows.append(duplicate_reference)
+
+    lines = [
+        "{1:F01SIMULATEDBANK0000000000}{2:I940RECONENGINE}{4:",
+        ":20:SIMMT940202605",
+        ":25:ACCT1001",
+        ":28C:00001/001",
+        ":60F:C260501INR0,00",
+    ]
+    for row in statement_rows:
+        lines.append(_mt940_statement_line(row))
+        lines.append(f":86:{row['description']}")
+    lines.extend([":62F:C260531INR999999,99", "-}"])
+    return "\n".join(lines) + "\n"
+
+
+def _mt940_statement_line(row: dict[str, object]) -> str:
+    value_date = date.fromisoformat(str(row["value_date"]))
+    posted_date = date.fromisoformat(str(row["posted_date"]))
+    direction = "C" if str(row["cr_dr"]).upper() == "CR" else "D"
+    amount = str(row["transaction_amount"]).replace(".", ",")
+    transaction_type = _mt940_transaction_type(str(row["payment_type"]))
+    reference = str(row["bank_reference"])
+    return (
+        f":61:{value_date:%y%m%d}{posted_date:%m%d}"
+        f"{direction}{amount}N{transaction_type}{reference}//{row['bank_txn_id']}"
+    )
+
+
+def _mt940_transaction_type(payment_type: str) -> str:
+    return {
+        "RTGS": "RTG",
+        "UPI": "UPI",
+        "NEFT": "TRF",
+        "IMPS": "TRF",
+        "CARD": "MSC",
+    }.get(payment_type.upper(), "TRF")

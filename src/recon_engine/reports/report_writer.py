@@ -34,12 +34,13 @@ def write_reports(
     total_internal_records: int,
     total_external_records: int,
     review_queue: pd.DataFrame | None = None,
+    metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
 
     review_queue = _normalize_review_queue(review_queue)
-    summary = build_summary(total_internal_records, total_external_records, matched, exceptions, review_queue)
+    summary = build_summary(total_internal_records, total_external_records, matched, exceptions, review_queue, metadata=metadata)
 
     matched.to_csv(target / "matched.csv", index=False)
     exceptions.to_csv(target / "exceptions.csv", index=False)
@@ -57,6 +58,7 @@ def build_summary(
     exceptions: pd.DataFrame | None = None,
     review_queue: pd.DataFrame | None = None,
     matched_count: int | None = None,
+    metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
     if matched is None:
         matched = matched_count if matched_count is not None else 0
@@ -73,7 +75,7 @@ def build_summary(
     tolerance_match_count = _match_type_count(matched_frame, "TOLERANCE")
     review_required_count = len(review_queue)
     unmatched_count = int(len(exceptions))
-    return {
+    summary = {
         "total_internal_records": total_internal_records,
         "total_external_records": total_external_records,
         "matched_count": matched_count,
@@ -89,6 +91,9 @@ def build_summary(
         "exception_breakdown": exception_breakdown,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+    if metadata:
+        summary.update(metadata)
+    return summary
 
 
 def write_excel_report(

@@ -7,9 +7,10 @@ This project delivers a high-performance, modular reconciliation engine built in
 
 ---
 
-## Current Status (Phase 2)
+## Current Status (Phase 3)
 - **Implemented:** 
     - End-to-end CSV reconciliation pipeline.
+    - Simulated/common MT940 bank statement ingestion.
     - Canonical transaction data model (Source-agnostic).
     - Exact matching logic (Reference, Amount, Date, Currency, Direction).
     - Optional fuzzy matching using `rapidfuzz`.
@@ -19,9 +20,10 @@ This project delivers a high-performance, modular reconciliation engine built in
     - Rule-based exception classification.
     - Summary, Match, Exception, Review Queue, Audit, and Excel workbook reporting.
 - **Verification Results:**
-    - **Dataset Size:** 100 Internal / 100 External records.
-    - **Fuzzy Run:** 94 auto-matched records (94% Match Rate), 2 review-required pairs, and 8 exception rows.
-    - **Tests:** 11 passing pytest unit tests covering exact matching, fuzzy scoring, tolerances, review queue, reports, normalization, and exceptions.
+    - **CSV Dataset Size:** 100 Internal / 100 External records.
+    - **CSV Fuzzy Run:** 94 auto-matched records (94% Match Rate), 2 review-required pairs, and 8 exception rows.
+    - **MT940 Fuzzy Run:** MT940 sample reconciliation runs end-to-end with generated statement data.
+    - **Tests:** 16 passing pytest unit tests covering exact matching, fuzzy scoring, tolerances, review queue, reports, normalization, exceptions, and MT940 parsing.
 
 ---
 
@@ -30,6 +32,7 @@ This project delivers a high-performance, modular reconciliation engine built in
 - **Data:** Pandas (Tabular processing), Pydantic (Schema validation).
 - **CLI:** Typer (Command-line interface).
 - **Matching:** RapidFuzz for reference/narration/counterparty similarity.
+- **Bank Formats:** CSV and practical MT940 parsing.
 - **Reports:** CSV/JSON plus Excel workbook output through pandas/openpyxl.
 - **Testing:** Pytest.
 
@@ -43,10 +46,9 @@ This project delivers a high-performance, modular reconciliation engine built in
 ---
 
 ## Roadmap
-1. **Phase 3:** SWIFT MT940 Parser integration.
-2. **Phase 4:** ISO 20022 CAMT.053 XML Parser integration.
-3. **Phase 5:** Enhanced Excel report formatting and operational dashboards.
-4. **Phase 6:** Performance benchmarking for multi-million record datasets.
+1. **Phase 4:** ISO 20022 CAMT.053 XML Parser integration.
+2. **Phase 5:** Enhanced Excel report formatting and operational dashboards.
+3. **Phase 6:** Performance benchmarking for multi-million record datasets.
 
 ---
 

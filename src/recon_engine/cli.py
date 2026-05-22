@@ -14,10 +14,12 @@ from recon_engine.matching.fuzzy_matcher import FuzzyMatchConfig, find_fuzzy_mat
 from recon_engine.normalisation.normalizer import (
     BANK_REQUIRED_COLUMNS,
     INTERNAL_REQUIRED_COLUMNS,
+    normalize_mt940_statement,
     normalize_bank_settlement,
     normalize_internal_ledger,
 )
 from recon_engine.parsers.csv_parser import read_csv
+from recon_engine.parsers.mt940_parser import parse_mt940
 from recon_engine.reports.report_writer import AuditLog, write_reports
 from recon_engine.simulation.sample_data_generator import generate_sample_data as generate_data
 
@@ -29,16 +31,21 @@ console = Console()
 def generate_sample_data(
     output: Path = typer.Option(DEFAULT_GENERATED_DIR, "--output", "-o", help="Directory for generated CSV files."),
     count: int = typer.Option(100, "--count", "-c", min=20, help="Approximate number of sample transactions."),
+    include_mt940: bool = typer.Option(False, "--include-mt940", help="Also generate a simulated MT940 statement."),
 ) -> None:
-    internal_path, bank_path = generate_data(output, count)
+    paths = generate_data(output, count, include_mt940=include_mt940)
+    internal_path, bank_path = paths[0], paths[1]
     console.print(f"Generated internal ledger: {internal_path}")
     console.print(f"Generated bank settlement: {bank_path}")
+    if include_mt940:
+        console.print(f"Generated MT940 statement: {paths[2]}")
 
 
 @app.command("reconcile")
 def reconcile(
     internal: Path = typer.Option(DEFAULT_INTERNAL_FILE, "--internal", help="Internal ledger CSV path."),
     external: Path = typer.Option(DEFAULT_EXTERNAL_FILE, "--external", help="Bank settlement CSV path."),
+    external_format: str = typer.Option("csv", "--external-format", help="External input format: csv or mt940."),
     output: Path = typer.Option(DEFAULT_OUTPUT_DIR, "--output", "-o", help="Output directory for reports."),
     enable_fuzzy: bool = typer.Option(False, "--enable-fuzzy", help="Enable fuzzy and tolerance-based matching."),
     amount_tolerance: str = typer.Option("1.00", "--amount-tolerance", help="Absolute amount tolerance."),
@@ -51,13 +58,22 @@ def reconcile(
     internal_raw = read_csv(internal, INTERNAL_REQUIRED_COLUMNS)
     audit.add("LOAD_INTERNAL", f"Loaded {internal}", len(internal_raw))
 
-    external_raw = read_csv(external, BANK_REQUIRED_COLUMNS)
-    audit.add("LOAD_EXTERNAL", f"Loaded {external}", len(external_raw))
+    normalized_external_format = external_format.lower()
+    if normalized_external_format == "csv":
+        external_raw = read_csv(external, BANK_REQUIRED_COLUMNS)
+        external_normalized = normalize_bank_settlement(external_raw)
+        parser_used = "csv_parser"
+    elif normalized_external_format == "mt940":
+        external_raw = parse_mt940(external)
+        external_normalized = normalize_mt940_statement(external_raw)
+        parser_used = "mt940_parser"
+    else:
+        raise typer.BadParameter("external_format must be csv or mt940")
+    audit.add("LOAD_EXTERNAL", f"Loaded {external} as {normalized_external_format}", len(external_raw))
 
     internal_normalized = normalize_internal_ledger(internal_raw)
-    external_normalized = normalize_bank_settlement(external_raw)
     audit.add("NORMALIZE_INTERNAL", "Normalized internal ledger to canonical schema", len(internal_normalized))
-    audit.add("NORMALIZE_EXTERNAL", "Normalized bank settlement to canonical schema", len(external_normalized))
+    audit.add("NORMALIZE_EXTERNAL", f"Normalized {normalized_external_format} records to canonical schema", len(external_normalized))
 
     matched, matched_internal_ids, matched_external_ids = find_exact_matches(internal_normalized, external_normalized)
     audit.add("MATCH_EXACT", "Applied exact matching on reference, amount, currency, direction, and value date", len(matched))
@@ -104,6 +120,7 @@ def reconcile(
         total_internal_records=len(internal_normalized),
         total_external_records=len(external_normalized),
         review_queue=review_queue,
+        metadata={"external_format": normalized_external_format, "parser_used": parser_used},
     )
     console.print(f"Wrote reports to: {output}")
     console.print(f"Matched records: {summary['matched_count']}")

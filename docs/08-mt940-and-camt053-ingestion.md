@@ -1,15 +1,28 @@
-# MT940 and CAMT.053 Ingestion (Roadmap)
+# MT940 and CAMT.053 Ingestion
 
-While Phase 1 focuses on CSV, the architecture is designed to support standard banking formats.
+The engine now supports CSV and a practical MT940 parser. CAMT.053 remains planned for Phase 4.
 
-## MT940 (SWIFT) Ingestion
+## MT940 (SWIFT) Ingestion (Implemented)
 - **Format:** Tag-based flat file.
 - **Strategy:** 
-    - Use a regex-based parser to extract Tag 61 (Transaction) and Tag 86 (Details).
-    - Map Tag 61 amount and date to the Canonical Model.
-    - Extract the reference from Tag 86 using bank-specific patterns.
+    - Use a regex-based parser to extract `:61:` statement lines and `:86:` narration.
+    - Extract account number from `:25:`.
+    - Extract statement currency from `:60F:` or `:62F:`.
+    - Convert comma-decimal MT940 amounts into `Decimal`.
+    - Map `C` to `CREDIT` and `D` to `DEBIT`.
+    - Use the customer reference from `:61:`; fallback to bank reference or generated record id when missing.
+    - Normalize parsed rows into the canonical transaction schema with `source_system = MT940`.
 
-## CAMT.053 (ISO 20022) Ingestion
+### Supported Simulated Statement Line Shape
+
+```text
+:61:YYMMDDMMDDC123,45NTRFNONREF//BANKREF123
+:61:YYMMDDMMDDD123,45NTRFREF123//BANKREF456
+```
+
+This is not a full global SWIFT parser. It is intentionally scoped to project simulation and common statement-line structure.
+
+## CAMT.053 (ISO 20022) Ingestion (Planned)
 - **Format:** XML.
 - **Strategy:**
     - Use `lxml` for XPath-based extraction of `<Ntry>` (Entry) nodes.
@@ -17,6 +30,6 @@ While Phase 1 focuses on CSV, the architecture is designed to support standard b
     - Support for multi-currency statements within a single file.
 
 ## Integration Plan
-1. **Abstract Parser Class:** Define a common interface `BaseParser`.
-2. **Factory Pattern:** Instantiate the correct parser based on file extension or header content.
-3. **Unified Normalization:** Regardless of input, the matching engine only sees `CanonicalTransaction` objects.
+1. **Current CLI Selection:** `--external-format csv|mt940`.
+2. **Unified Normalization:** Regardless of input, the matching engine only sees canonical transaction rows.
+3. **Future Parser Selection:** Consider a parser registry or factory when CAMT.053 is added.

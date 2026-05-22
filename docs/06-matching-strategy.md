@@ -54,3 +54,13 @@ Decision thresholds:
 
 ### Many-to-One / Many-to-Many
 Future support for aggregating multiple internal transactions against a single bank bulk settlement.
+
+## Phase 3: MT940 External Records (Implemented)
+
+MT940 statement lines are parsed and normalized into the same canonical schema as CSV bank settlement rows. The matching engine does not need a separate MT940 algorithm; exact and fuzzy matching operate on canonical fields such as transaction reference, amount, currency, direction, value date, narration, and source system.
+
+MT940-specific caveats:
+
+- Counterparty account is set to `UNKNOWN` when the statement line does not provide it.
+- Payment rail is inferred from MT940 transaction type where practical, otherwise `UNKNOWN`.
+- Reference fallback uses bank reference or generated record id when the customer reference is `NONREF`.

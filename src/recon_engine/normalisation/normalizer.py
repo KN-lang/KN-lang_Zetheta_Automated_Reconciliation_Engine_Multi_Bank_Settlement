@@ -38,6 +38,20 @@ BANK_REQUIRED_COLUMNS = [
     "settlement_status",
 ]
 
+MT940_REQUIRED_COLUMNS = [
+    "mt940_record_id",
+    "account_number",
+    "transaction_date",
+    "value_date",
+    "amount",
+    "currency",
+    "direction",
+    "transaction_reference",
+    "transaction_type",
+    "narration",
+    "raw_hash",
+]
+
 
 def normalize_internal_ledger(frame: pd.DataFrame) -> pd.DataFrame:
     rows = [
@@ -85,6 +99,29 @@ def normalize_bank_settlement(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=CANONICAL_COLUMNS)
 
 
+def normalize_mt940_statement(frame: pd.DataFrame) -> pd.DataFrame:
+    rows = [
+        {
+            "source_system": "MT940",
+            "record_id": row["mt940_record_id"],
+            "transaction_reference": row["transaction_reference"],
+            "account_number": row["account_number"],
+            "counterparty_account": "UNKNOWN",
+            "transaction_date": _date(row["transaction_date"]),
+            "value_date": _date(row["value_date"]),
+            "amount": _money(row["amount"]),
+            "currency": _upper(row["currency"]),
+            "direction": _direction(row["direction"]),
+            "payment_rail": _rail_from_mt940_type(row["transaction_type"]),
+            "narration": row["narration"],
+            "status": "SUCCESS",
+            "raw_hash": row["raw_hash"],
+        }
+        for _, row in frame.iterrows()
+    ]
+    return pd.DataFrame(rows, columns=CANONICAL_COLUMNS)
+
+
 def _money(value: object) -> Decimal:
     return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -114,6 +151,16 @@ def _rail(value: object) -> str:
 def _status(value: object) -> str:
     normalized = _upper(value)
     return normalized if normalized in {"SUCCESS", "FAILED", "PENDING", "REVERSED"} else "UNKNOWN"
+
+
+def _rail_from_mt940_type(value: object) -> str:
+    normalized = _upper(value)
+    return {
+        "TRF": "NEFT",
+        "RTG": "RTGS",
+        "UPI": "UPI",
+        "MSC": "UNKNOWN",
+    }.get(normalized, "UNKNOWN")
 
 
 def _raw_hash(row: dict[str, object]) -> str:
