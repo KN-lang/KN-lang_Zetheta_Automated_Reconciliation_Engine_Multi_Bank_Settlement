@@ -1,0 +1,20 @@
+@startuml Reconciliation Pipeline
+
+actor User
+participant CLI
+participant Parser
+participant Normalizer
+participant Matcher
+participant Classifier
+participant Reporter
+
+User -> CLI: run reconcile
+CLI -> Parser: load(internal, external)
+Parser -> Normalizer: normalize to Canonical Model
+Normalizer -> Matcher: execute matching
+Matcher -> Classifier: classify unmatched records
+Matcher -> Reporter: send matches
+Classifier -> Reporter: send exceptions
+Reporter -> User: write output files
+
+@enduml

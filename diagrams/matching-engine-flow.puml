@@ -1,0 +1,21 @@
+@startuml Matching Engine Flow
+
+start
+:Group records by Reference;
+if (Reference exists in both sources?) then (yes)
+  :Compare Amount, Currency, Direction, Date;
+  if (All match exactly?) then (yes)
+    :Mark as MATCHED;
+  else (no)
+    :Mark as EXCEPTION (Partial Match/Mismatch);
+  endif
+else (no)
+  :Mark as EXCEPTION (Unmatched);
+endif
+
+if (Duplicate Reference detected?) then (yes)
+  :Override as EXCEPTION (Duplicate);
+endif
+
+stop
+@enduml

@@ -1,0 +1,19 @@
+@startuml Exception Management Flow
+
+state "Unmatched Record" as Unmatched
+state "Classification Engine" as Classifier
+state "Exception Types" as Types
+
+Unmatched --> Classifier
+Classifier --> Types
+
+state Types {
+    [*] --> UNMATCHED
+    [*] --> DUPLICATE_REFERENCE
+    [*] --> AMOUNT_MISMATCH
+}
+
+Types --> Reporter : Assign Reason Code
+Reporter --> "exceptions.csv" : Write Record
+
+@enduml

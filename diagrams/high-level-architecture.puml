@@ -1,0 +1,37 @@
+@startuml High Level Architecture
+
+package "Ingestion Layer" {
+    [CSV Parser]
+    [MT940 Parser (Planned)]
+    [CAMT.053 Parser (Planned)]
+}
+
+package "Core Engine" {
+    [Normalizer]
+    [Canonical Model]
+    [Matching Engine]
+    [Exception Classifier]
+}
+
+package "Reporting Layer" {
+    [Report Writer]
+    [Audit Logger]
+}
+
+database "File System" {
+    [Source Files]
+    [Output CSV/JSON]
+}
+
+[Source Files] --> [CSV Parser]
+[CSV Parser] --> [Normalizer]
+[Normalizer] --> [Canonical Model]
+[Canonical Model] --> [Matching Engine]
+[Matching Engine] --> [Exception Classifier]
+[Matching Engine] --> [Report Writer]
+[Exception Classifier] --> [Report Writer]
+[Report Writer] --> [Output CSV/JSON]
+[Matching Engine] --> [Audit Logger]
+[Audit Logger] --> [Output CSV/JSON]
+
+@enduml

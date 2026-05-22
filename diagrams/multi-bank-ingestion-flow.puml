@@ -1,0 +1,30 @@
+@startuml Multi-Bank Ingestion Flow
+
+package "Sources" {
+    [Bank A (CSV)]
+    [Bank B (MT940)]
+    [Bank C (CAMT.053)]
+}
+
+package "Parsers" {
+    [CSV Parser]
+    [MT940 Parser]
+    [CAMT Parser]
+}
+
+node "Normalization Layer" {
+    [Mapping Logic]
+}
+
+[Bank A (CSV)] --> [CSV Parser]
+[Bank B (MT940)] --> [MT940 Parser]
+[Bank C (CAMT.053)] --> [CAMT Parser]
+
+[CSV Parser] --> [Mapping Logic]
+[MT940 Parser] --> [Mapping Logic]
+[CAMT Parser] --> [Mapping Logic]
+
+[Mapping Logic] --> [Canonical Transaction Model]
+[Canonical Transaction Model] --> [Reconciliation Engine]
+
+@enduml
