@@ -16,16 +16,41 @@ The engine handles 1:1 matching. If multiple records share the same reference bu
 
 ---
 
-## Phase 2: Enhanced Matching (Planned)
+## Phase 2: Enhanced Matching (Implemented)
 
 ### Fuzzy Reference Matching
-Using `rapidfuzz` to handle minor typos in references (e.g., `REF123` vs `REF-123`).
+The optional fuzzy pass uses `rapidfuzz` after exact matching. It compares:
+
+- transaction reference
+- narration
+- counterparty account
+- amount
+- currency
+- direction
+- value date
+
+The text component is driven primarily by transaction reference, with narration and counterparty account used to improve confidence when references are similar but not identical.
 
 ### Amount Tolerance
-Configurable thresholds (e.g., match if difference is < $0.05) to account for minor rounding or bank fees.
+The CLI supports `--amount-tolerance`, defaulting to `1.00`. Amount comparisons are Decimal-safe and do not rely on float equality.
 
 ### Date Windowing
-Allowing matches within a +/- 1-3 day window to account for settlement delays.
+The CLI supports `--date-tolerance-days`, defaulting to `2`. Same-day matches get full date confidence; near dates receive partial confidence.
+
+### Confidence Score
+The fuzzy matcher uses a weighted score:
+
+- reference/text similarity: 40%
+- amount match or tolerance: 25%
+- date proximity: 15%
+- direction match: 10%
+- currency match: 10%
+
+Decision thresholds:
+
+- `score >= 0.85`: auto-match
+- `0.60 <= score < 0.85`: review queue
+- `score < 0.60`: unmatched
 
 ### Many-to-One / Many-to-Many
 Future support for aggregating multiple internal transactions against a single bank bulk settlement.

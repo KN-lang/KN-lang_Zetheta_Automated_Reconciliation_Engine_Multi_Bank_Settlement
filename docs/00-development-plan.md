@@ -11,10 +11,12 @@
 
 ## Phase 2: Fuzzy Matching
 
-- Add configurable amount tolerances.
-- Add date tolerance windows.
-- Use fuzzy reference and narration matching with `rapidfuzz`.
-- Introduce confidence scoring beyond exact matches.
+- Status: Implemented.
+- Added configurable amount tolerances.
+- Added date tolerance windows.
+- Added fuzzy reference, narration, and counterparty matching with `rapidfuzz`.
+- Added weighted confidence scoring and review queue generation.
+- Added Excel workbook output with Summary, Matched, Exceptions, Review Queue, and Audit Log sheets.
 
 ## Phase 3: MT940 Parser
 
@@ -30,7 +32,7 @@
 
 ## Phase 5: Reports and Dashboard
 
-- Add Excel reports with exception tabs and summaries.
+- Enhance Excel report formatting and analyst workflow support.
 - Add richer audit output.
 - Consider a lightweight dashboard for reconciliation operations.
 

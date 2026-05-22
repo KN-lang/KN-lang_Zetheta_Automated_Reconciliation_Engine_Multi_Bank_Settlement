@@ -72,6 +72,7 @@ def _apply_exception_scenarios(
     bank_rows: list[dict[str, object]],
     base_date: date,
 ) -> None:
+    bank_rows[5]["bank_reference"] = "UTR-000005"  # fuzzy reference scenario
     bank_rows.pop(10)  # missing external
     internal_rows.pop(20)  # missing internal
     bank_rows[30]["transaction_amount"] = "9999.99"

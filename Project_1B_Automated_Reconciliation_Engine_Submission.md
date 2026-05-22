@@ -7,18 +7,21 @@ This project delivers a high-performance, modular reconciliation engine built in
 
 ---
 
-## Current Status (Phase 1)
+## Current Status (Phase 2)
 - **Implemented:** 
     - End-to-end CSV reconciliation pipeline.
     - Canonical transaction data model (Source-agnostic).
     - Exact matching logic (Reference, Amount, Date, Currency, Direction).
+    - Optional fuzzy matching using `rapidfuzz`.
+    - Decimal-safe amount tolerance and value-date tolerance matching.
+    - Weighted confidence scoring with auto-match and review thresholds.
+    - Review queue generation.
     - Rule-based exception classification.
-    - Summary, Match, Exception, and Audit reporting.
+    - Summary, Match, Exception, Review Queue, Audit, and Excel workbook reporting.
 - **Verification Results:**
     - **Dataset Size:** 100 Internal / 100 External records.
-    - **Success Rate:** 92 matched records (92% Match Rate).
-    - **Exceptions:** 16 records identified and classified.
-    - **Tests:** 6 passing pytest unit tests covering core logic.
+    - **Fuzzy Run:** 94 auto-matched records (94% Match Rate), 2 review-required pairs, and 8 exception rows.
+    - **Tests:** 11 passing pytest unit tests covering exact matching, fuzzy scoring, tolerances, review queue, reports, normalization, and exceptions.
 
 ---
 
@@ -26,6 +29,8 @@ This project delivers a high-performance, modular reconciliation engine built in
 - **Core:** Python 3.11+
 - **Data:** Pandas (Tabular processing), Pydantic (Schema validation).
 - **CLI:** Typer (Command-line interface).
+- **Matching:** RapidFuzz for reference/narration/counterparty similarity.
+- **Reports:** CSV/JSON plus Excel workbook output through pandas/openpyxl.
 - **Testing:** Pytest.
 
 ---
@@ -38,11 +43,10 @@ This project delivers a high-performance, modular reconciliation engine built in
 ---
 
 ## Roadmap
-1. **Phase 2:** Fuzzy matching (Amount tolerances, Date windows, Levenshtein distance on references).
-2. **Phase 3:** SWIFT MT940 Parser integration.
-3. **Phase 4:** ISO 20022 CAMT.053 XML Parser integration.
-4. **Phase 5:** Enhanced Excel reporting and operational dashboards.
-5. **Phase 6:** Performance benchmarking for multi-million record datasets.
+1. **Phase 3:** SWIFT MT940 Parser integration.
+2. **Phase 4:** ISO 20022 CAMT.053 XML Parser integration.
+3. **Phase 5:** Enhanced Excel report formatting and operational dashboards.
+4. **Phase 6:** Performance benchmarking for multi-million record datasets.
 
 ---
 
