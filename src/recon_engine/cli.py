@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from recon_engine.config import DEFAULT_EXTERNAL_FILE, DEFAULT_GENERATED_DIR, DEFAULT_INTERNAL_FILE, DEFAULT_OUTPUT_DIR
+from recon_engine.benchmark import run_benchmark
 from recon_engine.exceptions.classifier import classify_exceptions
 from recon_engine.matching.exact_matcher import find_exact_matches
 from recon_engine.matching.fuzzy_matcher import FuzzyMatchConfig, find_fuzzy_matches
@@ -137,6 +138,21 @@ def reconcile(
     console.print(f"Review required: {summary['review_required_count']}")
     console.print(f"Exceptions: {summary['exception_count']}")
     console.print(f"Match rate: {summary['match_rate_percent']}%")
+
+
+@app.command("benchmark")
+def benchmark(
+    records: int = typer.Option(1000, "--records", "-r", min=20, help="Number of internal and CSV bank records to generate."),
+) -> None:
+    result = run_benchmark(records)
+    console.print("Benchmark complete")
+    console.print("Wrote reports/benchmark_results.md")
+    console.print("Wrote data/output/benchmark_summary.json")
+    for row in result["results"]:
+        console.print(
+            f"{row['benchmark_name']}: {row['records_processed']} records in "
+            f"{row['duration_seconds']}s ({row['records_per_second']} records/sec)"
+        )
 
 
 def main() -> None:

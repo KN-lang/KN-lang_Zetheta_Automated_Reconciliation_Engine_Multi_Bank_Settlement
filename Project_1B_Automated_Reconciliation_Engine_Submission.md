@@ -1,62 +1,146 @@
 # Project Submission: Automated Reconciliation Engine for Multi-Bank Settlement Systems
 
-## Project Overview
-This project delivers a high-performance, modular reconciliation engine built in Python. It is designed to bridge the gap between internal ledgers and various bank settlement formats, ensuring financial integrity through automated matching and deterministic exception classification.
-
 **GitHub Repository:** [KN-lang/KN-lang_Zetheta_Automated_Reconciliation_Engine_Multi_Bank_Settlement](https://github.com/KN-lang/KN-lang_Zetheta_Automated_Reconciliation_Engine_Multi_Bank_Settlement)
 
----
+## Executive Summary
 
-## Current Status (Phase 4)
-- **Implemented:** 
-    - End-to-end CSV reconciliation pipeline.
-    - Simulated/common MT940 bank statement ingestion.
-    - Simulated/common CAMT.053 XML statement ingestion.
-    - Canonical transaction data model (Source-agnostic).
-    - Exact matching logic (Reference, Amount, Date, Currency, Direction).
-    - Optional fuzzy matching using `rapidfuzz`.
-    - Decimal-safe amount tolerance and value-date tolerance matching.
-    - Weighted confidence scoring with auto-match and review thresholds.
-    - Review queue generation.
-    - Rule-based exception classification.
-    - Summary, Match, Exception, Review Queue, Audit, and Excel workbook reporting.
-- **Verification Results:**
-    - **CSV Dataset Size:** 100 Internal / 100 External records.
-    - **CSV Fuzzy Run:** 94 auto-matched records (94% Match Rate), 2 review-required pairs, and 8 exception rows.
-    - **MT940 Fuzzy Run:** MT940 sample reconciliation runs end-to-end with generated statement data.
-    - **CAMT.053 Fuzzy Run:** CAMT.053 sample reconciliation runs end-to-end with generated XML statement data.
-    - **Tests:** 22 passing pytest unit tests covering exact matching, fuzzy scoring, tolerances, review queue, reports, normalization, exceptions, MT940 parsing, and CAMT.053 parsing.
+This project implements a Python-based reconciliation engine for fintech settlement operations. It ingests internal ledger records and external bank records, normalizes them into a common canonical schema, applies exact and fuzzy/tolerance matching, classifies exceptions, and generates auditable CSV, JSON, and Excel reports.
 
----
+The implementation is intentionally practical and assignment-scoped. It supports realistic simulated data and common MT940/CAMT.053 shapes, but it does not claim full banking-format certification or production deployment readiness.
 
-## Technical Stack
-- **Core:** Python 3.11+
-- **Data:** Pandas (Tabular processing), Pydantic (Schema validation).
-- **CLI:** Typer (Command-line interface).
-- **Matching:** RapidFuzz for reference/narration/counterparty similarity.
-- **Bank Formats:** CSV, practical MT940 parsing, and practical CAMT.053 parsing.
-- **Reports:** CSV/JSON plus Excel workbook output through pandas/openpyxl.
-- **Testing:** Pytest.
+## Implemented Phases
 
----
+| Phase | Scope | Status |
+|---|---|---|
+| Phase 1 | CSV ingestion, normalization, exact reconciliation, exceptions, reports | Complete |
+| Phase 2 | Fuzzy matching, tolerance matching, confidence scoring, review queue, Excel report | Complete |
+| Phase 3 | Practical MT940 parser and reconciliation support | Complete |
+| Phase 4 | Practical CAMT.053 XML parser and reconciliation support | Complete |
+| Phase 5 | Final docs, benchmark command, submission readiness | Complete |
 
-## Architecture Highlights
-- **Canonical Model:** Decouples matching logic from source formats.
-- **Modularity:** Separate packages for parsing, normalization, matching, and reporting.
-- **Auditability:** Full traceability via dedicated audit logs for every reconciliation run.
+## Technical Architecture
 
----
+- **Language:** Python 3.11+
+- **Data processing:** pandas
+- **Schema/modeling:** pydantic and typed canonical fields
+- **CLI:** Typer
+- **Fuzzy matching:** rapidfuzz
+- **Excel output:** openpyxl through pandas
+- **Tests:** pytest
 
-## Roadmap
-1. **Phase 5:** Enhanced Excel report formatting and operational dashboards.
-2. **Phase 6:** Performance benchmarking for multi-million record datasets.
+Package layout:
 
----
+- `parsers`: CSV, MT940, and CAMT.053 ingestion.
+- `normalisation`: source-specific canonical mapping.
+- `matching`: exact and fuzzy/tolerance matching.
+- `exceptions`: rule-based exception classification.
+- `reports`: CSV, JSON, Excel, audit log, and summary outputs.
+- `simulation`: synthetic data generation.
+- `benchmark.py`: benchmark runner.
 
-## Delivered Documentation
-- **Scenario Analysis:** Market context and problem statement.
-- **Technology Evaluation:** Rationale behind stack selection.
-- **Design Docs:** High-level, Data Flow, and Matching Strategy.
-- **ADRs:** Five key architectural decision records.
-- **Diagrams:** Five PlantUML architectural and flow diagrams.
-- **Review Reports:** Comprehensive architecture and AI-assisted development reviews.
+## Reconciliation Flow
+
+1. Generate or receive internal and external data.
+2. Parse the source file.
+3. Normalize into canonical transaction fields.
+4. Apply exact one-to-one matching.
+5. Optionally apply fuzzy/tolerance matching.
+6. Send medium-confidence pairs to the review queue.
+7. Classify remaining unmatched records as exceptions.
+8. Write reports and audit logs.
+
+## Matching Strategy
+
+Exact matching uses:
+
+- transaction reference
+- amount
+- currency
+- direction
+- value date
+
+Fuzzy/tolerance scoring uses weighted components:
+
+- reference/text similarity: 40%
+- amount match/tolerance: 25%
+- date proximity: 15%
+- direction match: 10%
+- currency match: 10%
+
+Thresholds:
+
+- `>= 0.85`: auto-match
+- `0.60` to `< 0.85`: review required
+- `< 0.60`: unmatched
+
+## Exception Handling
+
+The engine classifies exceptions such as:
+
+- missing internal records
+- missing external records
+- amount mismatch
+- date mismatch
+- currency mismatch
+- direction mismatch
+- duplicate internal records
+- duplicate external records
+- unmatched internal/external records
+
+Medium-confidence fuzzy candidates are written to `review_queue.csv` instead of being auto-resolved.
+
+## Supported Formats
+
+| Format | Status | Notes |
+|---|---|---|
+| Internal ledger CSV | Complete | Required internal source |
+| Bank settlement CSV | Complete | Primary external source |
+| MT940 | Complete | Practical parser for simulated/common statement lines |
+| CAMT.053 XML | Complete | Namespace-tolerant parser for simulated/common entries |
+
+## Validation Results
+
+- Unit/integration tests: **22 passing**
+- CSV reconciliation: validated with fuzzy mode
+- MT940 reconciliation: validated with fuzzy mode
+- CAMT.053 reconciliation: validated with fuzzy mode
+- Reports generated: matched, exceptions, review queue, summary JSON, audit log, Excel workbook
+
+## Benchmark Results
+
+Benchmark outputs were generated by:
+
+```bash
+python -m recon_engine benchmark --records 1000
+```
+
+Results are written to:
+
+- `reports/benchmark_results.md`
+- `data/output/benchmark_summary.json`
+
+The benchmark covers sample generation, CSV fuzzy reconciliation, MT940 fuzzy reconciliation, and CAMT.053 fuzzy reconciliation. It is a laptop-scale smoke benchmark, not a production capacity claim.
+
+| Benchmark | Format | Records | Seconds | Records/sec |
+|---|---:|---:|---:|---:|
+| sample_generation | csv+mt940+camt053 | 1000 | 0.0270 | 37091.13 |
+| csv_fuzzy | csv | 2000 | 5.5519 | 360.24 |
+| mt940_fuzzy | mt940 | 1037 | 35.6125 | 29.12 |
+| camt053_fuzzy | camt053 | 1037 | 34.7146 | 29.87 |
+
+## Limitations
+
+- MT940 support is not full SWIFT compliance.
+- CAMT.053 support is not full ISO 20022 certification.
+- Matching is currently one-to-one.
+- Fuzzy thresholds require production calibration.
+- No persistent database, dashboard, authentication, scheduling, or streaming ingestion.
+
+## Future Roadmap
+
+1. Many-to-one and many-to-many settlement matching.
+2. Exception aging and analyst workflow states.
+3. Production-grade parser hardening with broader bank samples.
+4. Dashboard and operational monitoring.
+5. Database-backed reconciliation history.
+6. Larger-scale performance benchmarking.

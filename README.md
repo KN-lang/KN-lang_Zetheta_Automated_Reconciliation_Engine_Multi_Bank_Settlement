@@ -1,15 +1,36 @@
 # Automated Reconciliation Engine
 
-Python foundation for a multi-bank settlement reconciliation engine. Phase 4 now supports CSV, simulated/common MT940, and simulated/common CAMT.053 bank statement ingestion with exact matching, fuzzy/tolerance matching, confidence scoring, review queue generation, exception classification, and CSV/JSON/Excel report output.
+Automated Reconciliation Engine for multi-bank settlement systems. The project ingests internal ledger CSV files and external bank settlement data from CSV, simulated MT940, and simulated CAMT.053 XML, normalizes them into a canonical transaction schema, applies exact and fuzzy/tolerance matching, classifies exceptions, and writes analyst-ready reports.
 
-## Architecture
+This is an assignment-grade fintech/data-engineering implementation. It is modular and testable, but it does not claim full production banking-format certification.
 
-- `parsers`: CSV loading, required-column validation, practical MT940 tag parsing, and practical CAMT.053 XML parsing.
-- `normalisation`: source-specific mappings into the canonical transaction schema.
-- `matching`: exact one-to-one matching plus optional fuzzy and tolerance-based matching.
-- `exceptions`: deterministic rule-based exception classification.
-- `reports`: CSV, JSON, Excel, review queue, and audit output writers.
-- `simulation`: sample internal ledger, bank settlement CSV, MT940, and CAMT.053 data generation.
+## Features
+
+| Area | Status |
+|---|---|
+| Internal ledger CSV ingestion | Implemented |
+| Bank settlement CSV ingestion | Implemented |
+| MT940 statement ingestion | Implemented for simulated/common `:61:` and `:86:` lines |
+| CAMT.053 XML ingestion | Implemented for simulated/common `<Ntry>` records |
+| Canonical transaction model | Implemented |
+| Exact matching | Implemented |
+| Fuzzy/tolerance matching | Implemented with `rapidfuzz` |
+| Confidence scoring | Implemented |
+| Review queue | Implemented |
+| Exception classification | Implemented |
+| CSV/JSON reports | Implemented |
+| Excel workbook report | Implemented |
+| Benchmark command | Implemented |
+| Test suite | 22 tests passing |
+
+## Supported Formats
+
+| Format | Input | CLI value | Notes |
+|---|---|---|---|
+| Internal ledger | CSV | internal input | Required for all reconciliations |
+| Bank settlement | CSV | `csv` | Primary Phase 1 format |
+| SWIFT MT940 | `.mt940` text | `mt940` | Practical parser, not full SWIFT compliance |
+| ISO 20022 CAMT.053 | XML | `camt053` | Namespace-tolerant practical parser |
 
 ## Setup
 
@@ -19,37 +40,33 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Commands
+If your shell only exposes `python3`, use `.venv/bin/python` after creating the virtual environment.
 
-Generate sample files:
-
-```bash
-python -m recon_engine generate-sample-data
-```
-
-Generate sample files including MT940:
+## Generate Sample Data
 
 ```bash
-python -m recon_engine generate-sample-data --include-mt940
+python -m recon_engine generate-sample-data --include-mt940 --include-camt053
 ```
 
-Generate sample files including CAMT.053:
+Outputs:
 
-```bash
-python -m recon_engine generate-sample-data --include-camt053
-```
+- `data/generated/internal_ledger.csv`
+- `data/generated/bank_settlement.csv`
+- `data/generated/bank_statement.mt940`
+- `data/generated/bank_statement_camt053.xml`
 
-Run reconciliation:
+## Reconcile CSV
 
 ```bash
 python -m recon_engine reconcile \
   --internal data/generated/internal_ledger.csv \
   --external data/generated/bank_settlement.csv \
   --external-format csv \
-  --output data/output
+  --output data/output \
+  --enable-fuzzy
 ```
 
-Run MT940 reconciliation:
+## Reconcile MT940
 
 ```bash
 python -m recon_engine reconcile \
@@ -60,7 +77,7 @@ python -m recon_engine reconcile \
   --enable-fuzzy
 ```
 
-Run CAMT.053 reconciliation:
+## Reconcile CAMT.053
 
 ```bash
 python -m recon_engine reconcile \
@@ -71,36 +88,20 @@ python -m recon_engine reconcile \
   --enable-fuzzy
 ```
 
-Run reconciliation with fuzzy and tolerance matching:
+## Benchmark
 
 ```bash
-python -m recon_engine reconcile \
-  --internal data/generated/internal_ledger.csv \
-  --external data/generated/bank_settlement.csv \
-  --output data/output \
-  --enable-fuzzy \
-  --amount-tolerance 1.00 \
-  --date-tolerance-days 2 \
-  --min-auto-score 0.85 \
-  --min-review-score 0.60
+python -m recon_engine benchmark --records 1000
 ```
 
-Console script equivalent:
+Outputs:
 
-```bash
-recon-engine generate-sample-data
-recon-engine reconcile --internal data/generated/internal_ledger.csv --external data/generated/bank_settlement.csv --output data/output
-```
+- `reports/benchmark_results.md`
+- `data/output/benchmark_summary.json`
 
-Run tests:
+## Report Outputs
 
-```bash
-pytest
-```
-
-## Outputs
-
-The reconciliation command writes:
+Each reconciliation run writes:
 
 - `data/output/matched.csv`
 - `data/output/exceptions.csv`
@@ -109,19 +110,45 @@ The reconciliation command writes:
 - `data/output/audit_log.csv`
 - `data/output/reconciliation_report.xlsx`
 
-`summary.json` includes total records, exact/fuzzy/tolerance match counts, auto-match count, review-required count, unmatched count, match rate, review rate, exception breakdown, external format, parser used, and generation timestamp.
+Sample summary fields:
 
-## Current Limitations
+```json
+{
+  "matched_count": 94,
+  "exact_match_count": 91,
+  "fuzzy_match_count": 1,
+  "tolerance_match_count": 2,
+  "review_required_count": 2,
+  "match_rate_percent": 94.0,
+  "external_format": "csv"
+}
+```
 
-- Fuzzy/tolerance matching is implemented as a one-to-one second pass after exact matching.
-- Duplicate references are excluded from exact matching and classified as exceptions.
-- Amount comparison uses `Decimal`; fuzzy confidence scores are threshold-based and should be tuned with production data.
-- MT940 parsing is intentionally practical, covering simulated/common `:61:` and `:86:` statement lines rather than full global SWIFT compliance.
-- CAMT.053 parsing is namespace-tolerant and practical for simulated/common `<Ntry>` records, not full ISO 20022 certification coverage.
-- Dashboards and streaming ingestion are not implemented.
+## Architecture
 
-## Next Milestones
+- `src/recon_engine/parsers`: CSV, MT940, and CAMT.053 parsers.
+- `src/recon_engine/normalisation`: source-specific mapping into the canonical schema.
+- `src/recon_engine/matching`: exact and fuzzy/tolerance matching.
+- `src/recon_engine/exceptions`: deterministic exception classification.
+- `src/recon_engine/reports`: CSV, JSON, Excel, summary, and audit outputs.
+- `src/recon_engine/simulation`: synthetic data generation.
+- `src/recon_engine/benchmark.py`: laptop-scale benchmark runner.
 
-1. Expand Excel reports with analyst-friendly formatting and exception aging.
-2. Add operational dashboards.
-3. Benchmark performance on larger transaction volumes.
+## Documentation Index
+
+See [docs/README.md](docs/README.md) for the full documentation map, including scenario analysis, technology evaluation, design docs, matching strategy, exception management, ingestion notes, scalability, capacity planning, FMEA, and architecture review.
+
+## Tests
+
+```bash
+pytest
+```
+
+Current suite: 22 tests covering normalization, exact matching, fuzzy scoring, tolerance behavior, review queue, Excel report creation, MT940 parsing, CAMT.053 parsing, and exception handling.
+
+## Limitations
+
+- MT940 and CAMT.053 parsers are practical assignment parsers, not full standard-compliance engines.
+- Fuzzy thresholds are configurable but not calibrated against production bank data.
+- Matching is one-to-one; many-to-one settlement aggregation is future work.
+- Dashboard, streaming ingestion, auth, persistence, and production deployment are out of scope.
