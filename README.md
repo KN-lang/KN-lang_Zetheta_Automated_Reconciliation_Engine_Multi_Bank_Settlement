@@ -3,6 +3,28 @@
 Automated Reconciliation Engine for multi-bank settlement systems. The project ingests internal ledger CSV files and external bank settlement data from CSV, simulated MT940, and simulated CAMT.053 XML, normalizes them into a canonical transaction schema, applies exact and fuzzy/tolerance matching, classifies exceptions, and writes analyst-ready reports.
 
 This is an assignment-grade fintech/data-engineering implementation. It is modular and testable, but it does not claim full production banking-format certification.
+## Business Context
+
+Financial institutions maintain an internal ledger of transactions while receiving settlement statements from banks and payment networks.
+
+Differences can occur due to timing delays, duplicate entries, missing records, amount mismatches, settlement failures, or formatting inconsistencies.
+
+The purpose of this engine is to automatically compare internal and external transaction records, identify matches, classify discrepancies, and generate actionable reconciliation reports for analysts and operations teams.
+
+Internal Ledger CSV
+        │
+        ▼
+   Normalization
+        │
+        ▼
+ Matching Engine
+ (Exact + Fuzzy)
+        │
+ ┌──────┴──────┐
+ ▼             ▼
+Matched     Exceptions
+ ▼             ▼
+Reports   Review Queue
 
 ## Features
 

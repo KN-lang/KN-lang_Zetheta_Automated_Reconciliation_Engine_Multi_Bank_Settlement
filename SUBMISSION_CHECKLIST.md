@@ -28,7 +28,7 @@
 
 ## Submission
 
-- [ ] Final changes committed.
-- [ ] Repository pushed to GitHub.
+- [x] Final changes committed.
+- [x] Repository pushed to GitHub.
 - [ ] Final report reviewed.
 - [ ] Feedback video recorded or submitted.
