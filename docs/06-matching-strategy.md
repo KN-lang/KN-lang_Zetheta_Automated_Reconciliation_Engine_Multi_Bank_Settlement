@@ -64,3 +64,14 @@ MT940-specific caveats:
 - Counterparty account is set to `UNKNOWN` when the statement line does not provide it.
 - Payment rail is inferred from MT940 transaction type where practical, otherwise `UNKNOWN`.
 - Reference fallback uses bank reference or generated record id when the customer reference is `NONREF`.
+
+## Phase 4: CAMT.053 External Records (Implemented)
+
+CAMT.053 entries are parsed and normalized into the same canonical schema before matching. The matching engine remains source-agnostic: CSV, MT940, and CAMT.053 all flow through exact matching first, then optional fuzzy/tolerance matching.
+
+CAMT.053-specific caveats:
+
+- Transaction reference prefers `EndToEndId`, then `AcctSvcrRef`, then a generated record id.
+- Counterparty account is extracted from related party account fields when available.
+- Payment rail is inferred from remittance text when it contains known rails such as UPI, NEFT, RTGS, IMPS, or CARD.
+- Parser coverage is practical and namespace-tolerant, not full ISO 20022 certification.

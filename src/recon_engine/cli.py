@@ -14,11 +14,13 @@ from recon_engine.matching.fuzzy_matcher import FuzzyMatchConfig, find_fuzzy_mat
 from recon_engine.normalisation.normalizer import (
     BANK_REQUIRED_COLUMNS,
     INTERNAL_REQUIRED_COLUMNS,
+    normalize_camt053_statement,
     normalize_mt940_statement,
     normalize_bank_settlement,
     normalize_internal_ledger,
 )
 from recon_engine.parsers.csv_parser import read_csv
+from recon_engine.parsers.camt053_parser import parse_camt053
 from recon_engine.parsers.mt940_parser import parse_mt940
 from recon_engine.reports.report_writer import AuditLog, write_reports
 from recon_engine.simulation.sample_data_generator import generate_sample_data as generate_data
@@ -32,20 +34,24 @@ def generate_sample_data(
     output: Path = typer.Option(DEFAULT_GENERATED_DIR, "--output", "-o", help="Directory for generated CSV files."),
     count: int = typer.Option(100, "--count", "-c", min=20, help="Approximate number of sample transactions."),
     include_mt940: bool = typer.Option(False, "--include-mt940", help="Also generate a simulated MT940 statement."),
+    include_camt053: bool = typer.Option(False, "--include-camt053", help="Also generate a simulated CAMT.053 statement."),
 ) -> None:
-    paths = generate_data(output, count, include_mt940=include_mt940)
+    paths = generate_data(output, count, include_mt940=include_mt940, include_camt053=include_camt053)
     internal_path, bank_path = paths[0], paths[1]
     console.print(f"Generated internal ledger: {internal_path}")
     console.print(f"Generated bank settlement: {bank_path}")
-    if include_mt940:
-        console.print(f"Generated MT940 statement: {paths[2]}")
+    for path in paths[2:]:
+        if path.suffix == ".mt940":
+            console.print(f"Generated MT940 statement: {path}")
+        elif path.suffix == ".xml":
+            console.print(f"Generated CAMT.053 statement: {path}")
 
 
 @app.command("reconcile")
 def reconcile(
     internal: Path = typer.Option(DEFAULT_INTERNAL_FILE, "--internal", help="Internal ledger CSV path."),
     external: Path = typer.Option(DEFAULT_EXTERNAL_FILE, "--external", help="Bank settlement CSV path."),
-    external_format: str = typer.Option("csv", "--external-format", help="External input format: csv or mt940."),
+    external_format: str = typer.Option("csv", "--external-format", help="External input format: csv, mt940, or camt053."),
     output: Path = typer.Option(DEFAULT_OUTPUT_DIR, "--output", "-o", help="Output directory for reports."),
     enable_fuzzy: bool = typer.Option(False, "--enable-fuzzy", help="Enable fuzzy and tolerance-based matching."),
     amount_tolerance: str = typer.Option("1.00", "--amount-tolerance", help="Absolute amount tolerance."),
@@ -67,8 +73,12 @@ def reconcile(
         external_raw = parse_mt940(external)
         external_normalized = normalize_mt940_statement(external_raw)
         parser_used = "mt940_parser"
+    elif normalized_external_format == "camt053":
+        external_raw = parse_camt053(external)
+        external_normalized = normalize_camt053_statement(external_raw)
+        parser_used = "camt053_parser"
     else:
-        raise typer.BadParameter("external_format must be csv or mt940")
+        raise typer.BadParameter("external_format must be csv, mt940, or camt053")
     audit.add("LOAD_EXTERNAL", f"Loaded {external} as {normalized_external_format}", len(external_raw))
 
     internal_normalized = normalize_internal_ledger(internal_raw)

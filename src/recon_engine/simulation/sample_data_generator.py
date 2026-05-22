@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 import pandas as pd
 
@@ -11,7 +12,8 @@ def generate_sample_data(
     output_dir: str | Path = "data/generated",
     count: int = 100,
     include_mt940: bool = False,
-) -> tuple[Path, Path] | tuple[Path, Path, Path]:
+    include_camt053: bool = False,
+) -> tuple[Path, ...]:
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
 
@@ -68,11 +70,16 @@ def generate_sample_data(
     bank_path = target / "bank_settlement.csv"
     pd.DataFrame(internal_rows).to_csv(internal_path, index=False)
     pd.DataFrame(bank_rows).to_csv(bank_path, index=False)
-    if include_mt940:
+    paths: list[Path] = [internal_path, bank_path]
+    if include_mt940 or include_camt053:
         mt940_path = target / "bank_statement.mt940"
         mt940_path.write_text(_build_mt940_statement(bank_rows), encoding="utf-8")
-        return internal_path, bank_path, mt940_path
-    return internal_path, bank_path
+        paths.append(mt940_path)
+    if include_camt053:
+        camt053_path = target / "bank_statement_camt053.xml"
+        ET.ElementTree(_build_camt053_document(bank_rows)).write(camt053_path, encoding="utf-8", xml_declaration=True)
+        paths.append(camt053_path)
+    return tuple(paths)
 
 
 def _apply_exception_scenarios(
@@ -152,3 +159,60 @@ def _mt940_transaction_type(payment_type: str) -> str:
         "IMPS": "TRF",
         "CARD": "MSC",
     }.get(payment_type.upper(), "TRF")
+
+
+def _build_camt053_document(bank_rows: list[dict[str, object]]) -> ET.Element:
+    statement_rows = [dict(row) for row in bank_rows[:35]]
+    statement_rows[6]["transaction_amount"] = "7777.77"  # amount mismatch
+    statement_rows[7]["value_date"] = "2026-05-20"  # date mismatch
+    statement_rows[8]["bank_reference"] = "UTR-000008"  # narration/reference variation
+
+    missing_internal = dict(statement_rows[0])
+    missing_internal["bank_txn_id"] = "CAMT_MISSING_INTERNAL"
+    missing_internal["bank_reference"] = "UTR_CAMT_ONLY"
+    missing_internal["transaction_amount"] = "5432.10"
+    missing_internal["description"] = "CAMT only settlement"
+    statement_rows.append(missing_internal)
+
+    duplicate_reference = dict(statement_rows[12])
+    duplicate_reference["bank_txn_id"] = "CAMT_DUPLICATE_000012"
+    duplicate_reference["description"] = "CAMT duplicate settlement"
+    statement_rows.append(duplicate_reference)
+
+    document = ET.Element("Document")
+    bank_to_customer = ET.SubElement(document, "BkToCstmrStmt")
+    statement = ET.SubElement(bank_to_customer, "Stmt")
+    account = ET.SubElement(statement, "Acct")
+    account_id = ET.SubElement(ET.SubElement(ET.SubElement(account, "Id"), "Othr"), "Id")
+    account_id.text = "ACCT1001"
+
+    for row in statement_rows:
+        _append_camt053_entry(statement, row)
+    return document
+
+
+def _append_camt053_entry(statement: ET.Element, row: dict[str, object]) -> None:
+    entry = ET.SubElement(statement, "Ntry")
+    amount = ET.SubElement(entry, "Amt", {"Ccy": str(row["currency_code"])})
+    amount.text = str(row["transaction_amount"])
+    direction = ET.SubElement(entry, "CdtDbtInd")
+    direction.text = "CRDT" if str(row["cr_dr"]).upper() == "CR" else "DBIT"
+    booking_date = ET.SubElement(ET.SubElement(entry, "BookgDt"), "Dt")
+    booking_date.text = str(row["posted_date"])
+    value_date = ET.SubElement(ET.SubElement(entry, "ValDt"), "Dt")
+    value_date.text = str(row["value_date"])
+    servicer_ref = ET.SubElement(entry, "AcctSvcrRef")
+    servicer_ref.text = str(row["bank_txn_id"])
+
+    tx_details = ET.SubElement(ET.SubElement(entry, "NtryDtls"), "TxDtls")
+    end_to_end_id = ET.SubElement(ET.SubElement(tx_details, "Refs"), "EndToEndId")
+    end_to_end_id.text = str(row["bank_reference"])
+
+    related_parties = ET.SubElement(tx_details, "RltdPties")
+    creditor = ET.SubElement(related_parties, "CdtrAcct")
+    ET.SubElement(ET.SubElement(ET.SubElement(creditor, "Id"), "Othr"), "Id").text = str(row["counterparty"])
+    debtor = ET.SubElement(related_parties, "DbtrAcct")
+    ET.SubElement(ET.SubElement(ET.SubElement(debtor, "Id"), "Othr"), "Id").text = str(row["counterparty"])
+
+    remittance = ET.SubElement(ET.SubElement(tx_details, "RmtInf"), "Ustrd")
+    remittance.text = f"{row['payment_type']} {row['description']}"

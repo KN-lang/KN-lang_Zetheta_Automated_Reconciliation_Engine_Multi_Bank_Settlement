@@ -52,6 +52,20 @@ MT940_REQUIRED_COLUMNS = [
     "raw_hash",
 ]
 
+CAMT053_REQUIRED_COLUMNS = [
+    "camt053_record_id",
+    "account_number",
+    "transaction_date",
+    "value_date",
+    "amount",
+    "currency",
+    "direction",
+    "transaction_reference",
+    "counterparty_account",
+    "narration",
+    "raw_hash",
+]
+
 
 def normalize_internal_ledger(frame: pd.DataFrame) -> pd.DataFrame:
     rows = [
@@ -122,6 +136,29 @@ def normalize_mt940_statement(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=CANONICAL_COLUMNS)
 
 
+def normalize_camt053_statement(frame: pd.DataFrame) -> pd.DataFrame:
+    rows = [
+        {
+            "source_system": "CAMT053",
+            "record_id": row["camt053_record_id"],
+            "transaction_reference": row["transaction_reference"],
+            "account_number": row["account_number"],
+            "counterparty_account": row["counterparty_account"] or "UNKNOWN",
+            "transaction_date": _date(row["transaction_date"]),
+            "value_date": _date(row["value_date"]),
+            "amount": _money(row["amount"]),
+            "currency": _upper(row["currency"]),
+            "direction": _direction(row["direction"]),
+            "payment_rail": _rail_from_narration(row["narration"]),
+            "narration": row["narration"],
+            "status": "SUCCESS",
+            "raw_hash": row["raw_hash"],
+        }
+        for _, row in frame.iterrows()
+    ]
+    return pd.DataFrame(rows, columns=CANONICAL_COLUMNS)
+
+
 def _money(value: object) -> Decimal:
     return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -161,6 +198,14 @@ def _rail_from_mt940_type(value: object) -> str:
         "UPI": "UPI",
         "MSC": "UNKNOWN",
     }.get(normalized, "UNKNOWN")
+
+
+def _rail_from_narration(value: object) -> str:
+    normalized = _upper(value)
+    for rail in ("UPI", "NEFT", "RTGS", "IMPS", "CARD"):
+        if rail in normalized:
+            return rail
+    return "UNKNOWN"
 
 
 def _raw_hash(row: dict[str, object]) -> str:

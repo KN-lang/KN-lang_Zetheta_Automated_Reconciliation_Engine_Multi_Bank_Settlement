@@ -1,15 +1,15 @@
 # Automated Reconciliation Engine
 
-Python foundation for a multi-bank settlement reconciliation engine. Phase 3 now supports CSV and simulated/common MT940 bank statement ingestion with exact matching, fuzzy/tolerance matching, confidence scoring, review queue generation, exception classification, and CSV/JSON/Excel report output.
+Python foundation for a multi-bank settlement reconciliation engine. Phase 4 now supports CSV, simulated/common MT940, and simulated/common CAMT.053 bank statement ingestion with exact matching, fuzzy/tolerance matching, confidence scoring, review queue generation, exception classification, and CSV/JSON/Excel report output.
 
 ## Architecture
 
-- `parsers`: CSV loading, required-column validation, and practical MT940 tag parsing.
+- `parsers`: CSV loading, required-column validation, practical MT940 tag parsing, and practical CAMT.053 XML parsing.
 - `normalisation`: source-specific mappings into the canonical transaction schema.
 - `matching`: exact one-to-one matching plus optional fuzzy and tolerance-based matching.
 - `exceptions`: deterministic rule-based exception classification.
 - `reports`: CSV, JSON, Excel, review queue, and audit output writers.
-- `simulation`: sample internal ledger, bank settlement CSV, and MT940 data generation.
+- `simulation`: sample internal ledger, bank settlement CSV, MT940, and CAMT.053 data generation.
 
 ## Setup
 
@@ -33,6 +33,12 @@ Generate sample files including MT940:
 python -m recon_engine generate-sample-data --include-mt940
 ```
 
+Generate sample files including CAMT.053:
+
+```bash
+python -m recon_engine generate-sample-data --include-camt053
+```
+
 Run reconciliation:
 
 ```bash
@@ -50,6 +56,17 @@ python -m recon_engine reconcile \
   --internal data/generated/internal_ledger.csv \
   --external data/generated/bank_statement.mt940 \
   --external-format mt940 \
+  --output data/output \
+  --enable-fuzzy
+```
+
+Run CAMT.053 reconciliation:
+
+```bash
+python -m recon_engine reconcile \
+  --internal data/generated/internal_ledger.csv \
+  --external data/generated/bank_statement_camt053.xml \
+  --external-format camt053 \
   --output data/output \
   --enable-fuzzy
 ```
@@ -100,12 +117,11 @@ The reconciliation command writes:
 - Duplicate references are excluded from exact matching and classified as exceptions.
 - Amount comparison uses `Decimal`; fuzzy confidence scores are threshold-based and should be tuned with production data.
 - MT940 parsing is intentionally practical, covering simulated/common `:61:` and `:86:` statement lines rather than full global SWIFT compliance.
-- CAMT.053 parsing is planned but not implemented yet.
+- CAMT.053 parsing is namespace-tolerant and practical for simulated/common `<Ntry>` records, not full ISO 20022 certification coverage.
 - Dashboards and streaming ingestion are not implemented.
 
 ## Next Milestones
 
-1. Implement CAMT.053 XML parsing.
-2. Expand Excel reports with analyst-friendly formatting and exception aging.
-3. Add operational dashboards.
-4. Benchmark performance on larger transaction volumes.
+1. Expand Excel reports with analyst-friendly formatting and exception aging.
+2. Add operational dashboards.
+3. Benchmark performance on larger transaction volumes.

@@ -28,10 +28,12 @@
 
 ## Phase 4: CAMT.053 Parser
 
-- Status: Planned.
-- Parse ISO 20022 CAMT.053 XML files with namespace-aware XML handling.
-- Normalize entries and transaction details into canonical transactions.
-- Validate parser behavior against sample bank files.
+- Status: Implemented for simulated/common CAMT.053 statement entries.
+- Parses account number, entry amount/currency, credit/debit indicator, booking date, value date, account servicer reference, end-to-end id, counterparty account, and remittance narration.
+- Handles XML namespaces by matching local tag names.
+- Normalizes entries and transaction details into canonical transactions.
+- Supports CAMT.053 reconciliation through `--external-format camt053`.
+- Includes parser, normalization, fallback, and end-to-end component tests.
 
 ## Phase 5: Reports and Dashboard
 

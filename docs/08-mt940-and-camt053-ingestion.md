@@ -1,6 +1,6 @@
 # MT940 and CAMT.053 Ingestion
 
-The engine now supports CSV and a practical MT940 parser. CAMT.053 remains planned for Phase 4.
+The engine now supports CSV, a practical MT940 parser, and a practical CAMT.053 parser.
 
 ## MT940 (SWIFT) Ingestion (Implemented)
 - **Format:** Tag-based flat file.
@@ -22,14 +22,20 @@ The engine now supports CSV and a practical MT940 parser. CAMT.053 remains plann
 
 This is not a full global SWIFT parser. It is intentionally scoped to project simulation and common statement-line structure.
 
-## CAMT.053 (ISO 20022) Ingestion (Planned)
+## CAMT.053 (ISO 20022) Ingestion (Implemented)
 - **Format:** XML.
 - **Strategy:**
-    - Use `lxml` for XPath-based extraction of `<Ntry>` (Entry) nodes.
-    - Map `<Amt>` (Amount), `<ValDt>` (Value Date), and `<AcctSvcrRef>` (Account Servicer Reference) to the Canonical Model.
-    - Support for multi-currency statements within a single file.
+    - Use Python `ElementTree` with namespace-tolerant local-name matching.
+    - Extract `<Ntry>` transaction entries.
+    - Map `<Amt Ccy="">`, `<CdtDbtInd>`, `<BookgDt>`, `<ValDt>`, `<AcctSvcrRef>`, `<EndToEndId>`, related party account, and `<RmtInf><Ustrd>` into parser rows.
+    - Prefer `<EndToEndId>` as transaction reference, fallback to `<AcctSvcrRef>`, then generated record id.
+    - Convert XML amounts into `Decimal`.
+    - Map `CRDT` to `CREDIT` and `DBIT` to `DEBIT`.
+    - Normalize parsed rows into the canonical transaction schema with `source_system = CAMT053`.
+
+This parser is practical and namespace-tolerant for simulated/common CAMT.053 records. It is not a full ISO 20022 certification engine.
 
 ## Integration Plan
-1. **Current CLI Selection:** `--external-format csv|mt940`.
+1. **Current CLI Selection:** `--external-format csv|mt940|camt053`.
 2. **Unified Normalization:** Regardless of input, the matching engine only sees canonical transaction rows.
-3. **Future Parser Selection:** Consider a parser registry or factory when CAMT.053 is added.
+3. **Future Parser Selection:** Consider a parser registry or factory if more external formats are added.
